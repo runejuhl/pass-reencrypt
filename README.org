@@ -1,0 +1,30 @@
+* pass-reencrypt
+
+Extension to pass to allow reencrypting a single password to the identities in
+the nearest =.gpg-id= file.
+
+Handy when you use a Yubikey with touch forced, and you don't really want to
+hit the button 300 times right now...
+
+Note: the script is quite hacky (sourcing bash by grepping parts of it...), and
+should probably be upstreamed at some point.
+
+** Installation
+
+Clone repo, symlink [[file:reencrypt.bash][reencrypt.bash]] into =~/.password-store/.extensions=.
+
+** Usage
+
+#+BEGIN_SRC sh
+  pass reencrypt some/password
+#+END_SRC
+
+*** Example
+
+#+BEGIN_QUOTE
+$ pass reencrypt www/github.com
+www/github.com.gpg: reencrypting to 'D7BE709D29FDB3C670490B66BBD52EE014FD0F92 0874D7D007F155520577DEE90ACCEE0203A154E7'
+[master d95a6ea] Reencrypt '/home/runejuhl/.password-store/www/github.com' using GPG IDs 'D7BE709D29FDB3C670490B66BBD52EE014FD0F92 0874D7D007F155520577DEE90ACCEE0203A154E7'.
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rewrite www/github.com.gpg (100%)
+#+END_QUOTE
