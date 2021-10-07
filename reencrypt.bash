@@ -10,7 +10,7 @@ declare -x \
 
 # source the functions from pass
 # shellcheck disable=SC1090
-source <(grep -B99999 'END subcommand functions' "$(which pass)")
+source <(grep -B99999 'END subcommand functions' "$(command -v pass)")
 
 set -euo pipefail
 
@@ -20,12 +20,15 @@ function reencrypt_file() {
 
   local passfile_temp="${passfile}.tmp.${RANDOM}.${RANDOM}.${RANDOM}.${RANDOM}.--"
 
-  current_keys="$(LC_ALL=C $GPG $PASSWORD_STORE_GPG_OPTS -v --no-secmem-warning --no-permission-warning --decrypt --list-only --keyid-format long "$passfile" 2>&1 | sed -n 's/^gpg: public key is \([A-F0-9]\+\)$/\1/p' | LC_ALL=C sort -u)"
+  current_keys="$(LC_ALL=C $GPG "$PASSWORD_STORE_GPG_OPTS" -v --no-secmem-warning --no-permission-warning --decrypt --list-only --keyid-format long "$passfile" 2>&1 | sed -n 's/^gpg: public key is \([A-F0-9]\+\)$/\1/p' | LC_ALL=C sort -u)"
 
   if [[ $gpg_keys != "$current_keys" ]]; then
     echo "${passfile#$PREFIX/}: reencrypting to '${gpg_keys}'"
-    $GPG -d "${GPG_OPTS[@]}" "$passfile" | $GPG -e "${GPG_RECIPIENT_ARGS[@]}" -o "$passfile_temp" "${GPG_OPTS[@]}" &&
-      mv "$passfile_temp" "$passfile" || rm -f "$passfile_temp"
+    (
+      $GPG -d "${GPG_OPTS[@]}" "$passfile" | \
+        $GPG -e "${GPG_RECIPIENT_ARGS[@]}" -o "$passfile_temp" "${GPG_OPTS[@]}" && \
+        mv "$passfile_temp" "$passfile"
+    ) || rm -f "$passfile_temp"
   fi
 
 }
@@ -51,7 +54,15 @@ for path in "${@}"; do
 
   set_git "$gpg_id_file"
   set_gpg_recipients "$passfile"
-  gpg_ids="${GPG_RECIPIENTS[*]}"
+  gpg_ids=''
+  GPG_RECIPIENTS=( )
+  GPG_RECIPIENT_ARGS=( )
+
+  while read -r gpg_id; do
+    GPG_RECIPIENT_ARGS+=( "-r" "$gpg_id" )
+    GPG_RECIPIENTS+=( "$gpg_id" )
+    gpg_ids+=" ${gpg_id}"
+  done < "$gpg_id_file"
 
   reencrypt_file "$passfile" "$gpg_ids"
   git_add_file "$passfile" "Reencrypt '${passname}' using GPG IDs '${gpg_ids}'."
